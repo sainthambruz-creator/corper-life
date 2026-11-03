@@ -2,6 +2,7 @@ import { useState } from "react";
 import { setDoc, updateDoc, doc, serverTimestamp } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
 import { db, auth } from "./firebase";
+import Scene from "./Scene";
 
 const STATES = [
   "Abia","Adamawa","Akwa Ibom","Anambra","Bauchi","Bayelsa","Benue","Borno",
@@ -61,6 +62,7 @@ export default function App() {
   const [stats, setStats] = useState({ cash: 20000, health: 100, energy: 100, day: 1 });
   const [status, setStatus] = useState("playing");
   const [log, setLog] = useState("Day 1 of your Service Year. What will you do?");
+  const [scene, setScene] = useState({ loc: "start", n: 1, event: false });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -102,6 +104,7 @@ export default function App() {
     let health = stats.health + r.health;
     let energy = stats.energy + r.energy;
     let message = r.msg;
+    let hadEvent = false;
     const day = stats.day + 1;
 
     if (energy < 20) {
@@ -115,6 +118,7 @@ export default function App() {
       health += ev.health;
       energy += ev.energy;
       message += " EVENT: " + ev.msg;
+      hadEvent = true;
     }
 
     if (day % 30 === 0) {
@@ -128,6 +132,7 @@ export default function App() {
     const next = { cash, health, energy, day };
     setStats(next);
     setLog(message);
+    setScene({ loc: action.id, n: day, event: hadEvent });
 
     if (health <= 0) {
       setStatus("over");
@@ -171,6 +176,8 @@ export default function App() {
       <div style={box}>
         <h2>Corper {player.name} - {player.state} State</h2>
         <p style={{ margin: "0 0 10px" }}>Day {stats.day} of {TOTAL_DAYS}</p>
+
+        <Scene loc={scene.loc} n={scene.n} event={scene.event} />
 
         <div style={statBox}>
           <span>Cash: N{stats.cash.toLocaleString()}</span>
