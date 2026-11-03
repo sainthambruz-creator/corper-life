@@ -3,6 +3,7 @@ import { setDoc, updateDoc, doc, serverTimestamp } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
 import { db, auth } from "./firebase";
 import Scene from "./Scene";
+import { sfx, isMuted, setMuted } from "./sound";
 
 const STATES = [
   "Abia","Adamawa","Akwa Ibom","Anambra","Bauchi","Bayelsa","Benue","Borno",
@@ -62,11 +63,20 @@ export default function App() {
   const [stats, setStats] = useState({ cash: 20000, health: 100, energy: 100, day: 1 });
   const [status, setStatus] = useState("playing");
   const [log, setLog] = useState("Day 1 of your Service Year. What will you do?");
-  const [scene, setScene] = useState({ loc: "start", n: 1, event: false });
+  const [scene, setScene] = useState({ loc: "start", n: 1, event: null });
+  const [soundOff, setSoundOff] = useState(isMuted());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  function toggleSound() {
+    const next = !soundOff;
+    setMuted(next);
+    setSoundOff(next);
+    if (!next) sfx.click();
+  }
+
   async function startGame() {
+    sfx.click();
     if (!name.trim() || !state) {
       setError("Enter your corper name and pick a state.");
       return;
@@ -96,16 +106,22 @@ export default function App() {
     if (status !== "playing") return;
     const r = action.run();
     if (stats.cash + r.cash < 0) {
+      sfx.denied();
       setLog("You don't have enough cash for that.");
       return;
     }
+
+    sfx.click();
+    sfx.steps();
 
     let cash = stats.cash + r.cash;
     let health = stats.health + r.health;
     let energy = stats.energy + r.energy;
     let message = r.msg;
-    let hadEvent = false;
+    let eventType = null;
     const day = stats.day + 1;
+
+    sfx[action.id]();
 
     if (energy < 20) {
       health -= 2;
@@ -118,12 +134,15 @@ export default function App() {
       health += ev.health;
       energy += ev.energy;
       message += " EVENT: " + ev.msg;
-      hadEvent = true;
+      eventType = ev.cash > 0 ? "good" : "bad";
+      if (eventType === "good") sfx.eventGood();
+      else sfx.eventBad();
     }
 
     if (day % 30 === 0) {
       cash += ALLOWANCE;
       message += " Allowance day! +N" + ALLOWANCE.toLocaleString() + ".";
+      sfx.allowance();
     }
 
     health = clamp(health);
@@ -132,14 +151,16 @@ export default function App() {
     const next = { cash, health, energy, day };
     setStats(next);
     setLog(message);
-    setScene({ loc: action.id, n: day, event: hadEvent });
+    setScene({ loc: action.id, n: day, event: eventType });
 
     if (health <= 0) {
       setStatus("over");
       setLog(message + " Your health hit zero. Game over.");
+      sfx.gameOver();
     } else if (day > TOTAL_DAYS) {
       setStatus("done");
       setLog("You completed your Service Year! Time to collect your discharge certificate.");
+      sfx.win();
     }
 
     try {
@@ -170,11 +191,20 @@ export default function App() {
     display: "flex", justifyContent: "space-between", background: "#f2f2f2",
     color: "#111", padding: 12, borderRadius: 8, marginBottom: 14, fontWeight: 600,
   };
+  const soundBtn = {
+    border: "none", background: "#eee", borderRadius: 20, fontSize: 20,
+    padding: "4px 12px", cursor: "pointer",
+  };
 
   if (player) {
     return (
       <div style={box}>
-        <h2>Corper {player.name} - {player.state} State</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ margin: "0 0 6px" }}>Corper {player.name} - {player.state}</h2>
+          <button style={soundBtn} onClick={toggleSound} aria-label="Toggle sound">
+            {soundOff ? "🔇" : "🔊"}
+          </button>
+        </div>
         <p style={{ margin: "0 0 10px" }}>Day {stats.day} of {TOTAL_DAYS}</p>
 
         <Scene loc={scene.loc} n={scene.n} event={scene.event} />
