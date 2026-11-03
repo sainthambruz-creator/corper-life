@@ -1,8 +1,7 @@
 import { useState } from "react";
-import {
-  addDoc, updateDoc, doc, collection, serverTimestamp,
-} from "firebase/firestore";
-import { db } from "./firebase";
+import { setDoc, updateDoc, doc, serverTimestamp } from "firebase/firestore";
+import { signInAnonymously } from "firebase/auth";
+import { db, auth } from "./firebase";
 
 const STATES = [
   "Abia","Adamawa","Akwa Ibom","Anambra","Bauchi","Bayelsa","Benue","Borno",
@@ -73,7 +72,9 @@ export default function App() {
     setError("");
     setSaving(true);
     try {
-      const ref = await addDoc(collection(db, "players"), {
+      const cred = await signInAnonymously(auth);
+      const uid = cred.user.uid;
+      await setDoc(doc(db, "players", uid), {
         name: name.trim(),
         state,
         cash: 20000,
@@ -82,7 +83,7 @@ export default function App() {
         day: 1,
         createdAt: serverTimestamp(),
       });
-      setPlayer({ id: ref.id, name: name.trim(), state });
+      setPlayer({ id: uid, name: name.trim(), state });
     } catch (e) {
       setError("Could not save: " + e.message);
     }
