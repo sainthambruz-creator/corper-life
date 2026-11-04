@@ -79,7 +79,8 @@ function Background({ loc, p }) {
   );
 }
 
-function Character({ h, dim }) {
+function Character({ h, dim, avatar }) {
+  const [src, setSrc] = useState(avatar === "corper-f" ? "corper-f" : "corper");
   const [failed, setFailed] = useState(false);
   const look = { filter: dim ? "brightness(0.78)" : "none", display: "block" };
   if (failed) {
@@ -99,9 +100,12 @@ function Character({ h, dim }) {
   }
   return (
     <img
-      src="/art/corper.png"
+      src={"/art/" + src + ".png"}
       alt="Corper"
-      onError={() => setFailed(true)}
+      onError={() => {
+        if (src !== "corper") setSrc("corper");
+        else setFailed(true);
+      }}
       style={{ ...look, height: h }}
     />
   );
@@ -184,7 +188,7 @@ function Steam() {
   ));
 }
 
-export default function Scene({ loc, n, event }) {
+export default function Scene({ loc, n, event, avatar }) {
   const p = PLACES[loc] || PLACES.start;
   const has = (x) => p.fx.includes(x);
   const good = event === "good";
@@ -210,7 +214,7 @@ export default function Scene({ loc, n, event }) {
 
       <div className={"walker" + (event && !good ? " react" : "")} key={"w" + n}>
         <div className="walker-inner">
-          <Character h={p.h} dim={p.dim} />
+          <Character h={p.h} dim={p.dim} avatar={avatar} />
         </div>
         <div
           style={{
