@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Hero from "./Hero";
 
 // h = the corper's height in pixels in each scene.
 // If he looks too big or small somewhere, change that scene's h number.
@@ -27,7 +28,7 @@ const PLACES = {
 
 const CSS = `
 @keyframes walkIn { from { transform: translateX(-170px); } to { transform: translateX(0); } }
-@keyframes stepbounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes stepbounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @keyframes idle { 0%,100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(-2px) scaleY(1.015); } }
 @keyframes hop { 0% { transform: translateY(0); } 40% { transform: translateY(-28px); } 100% { transform: translateY(0); } }
 @keyframes swing { from { transform: rotate(-22deg); } to { transform: rotate(22deg); } }
@@ -46,7 +47,7 @@ const CSS = `
 .bg { animation: fadeIn 0.5s ease-out, kenburns 22s ease-in-out infinite alternate; }
 .walker { position: absolute; bottom: 10px; left: 30px; animation: walkIn 0.9s ease-out; }
 .walker.react { animation: walkIn 0.9s ease-out, hop 0.5s ease-out 0.9s; }
-.walker-inner { transform-origin: bottom center; animation: stepbounce 0.3s ease-in-out 3, idle 2.4s ease-in-out 0.9s infinite; }
+.walker-inner { transform-origin: bottom center; animation: stepbounce 0.35s ease-in-out 3, idle 2.4s ease-in-out 0.9s infinite; }
 .leg { transform-box: fill-box; transform-origin: top center; animation: swing 0.3s ease-in-out 3 alternate; }
 .legR { animation-direction: alternate-reverse; }
 .mote { position: absolute; border-radius: 50%; pointer-events: none; animation: drift 8s linear infinite; }
@@ -75,38 +76,6 @@ function Background({ loc, p }) {
       alt=""
       onError={() => setFailed(true)}
       style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-    />
-  );
-}
-
-function Character({ h, dim, avatar }) {
-  const [src, setSrc] = useState(avatar === "corper-f" ? "corper-f" : "corper");
-  const [failed, setFailed] = useState(false);
-  const look = { filter: dim ? "brightness(0.78)" : "none", display: "block" };
-  if (failed) {
-    return (
-      <svg viewBox="0 0 60 100" height={h} width={h * 0.6} style={look}>
-        <rect className="leg" x="19" y="64" width="10" height="28" rx="4" fill="#3b3b3b" />
-        <rect className="leg legR" x="31" y="64" width="10" height="28" rx="4" fill="#3b3b3b" />
-        <rect x="15" y="30" width="30" height="38" rx="7" fill="#c2b280" />
-        <rect x="15" y="44" width="30" height="7" fill="#008751" />
-        <circle cx="30" cy="19" r="12" fill="#8d5524" />
-        <path d="M16 15 Q30 0 44 15 Z" fill="#c2b280" />
-        <circle cx="26" cy="21" r="1.6" fill="#222" />
-        <circle cx="34" cy="21" r="1.6" fill="#222" />
-        <path d="M26 26 Q30 29 34 26" stroke="#222" strokeWidth="1.5" fill="none" />
-      </svg>
-    );
-  }
-  return (
-    <img
-      src={"/art/" + src + ".png"}
-      alt="Corper"
-      onError={() => {
-        if (src !== "corper") setSrc("corper");
-        else setFailed(true);
-      }}
-      style={{ ...look, height: h }}
     />
   );
 }
@@ -214,7 +183,7 @@ export default function Scene({ loc, n, event, avatar }) {
 
       <div className={"walker" + (event && !good ? " react" : "")} key={"w" + n}>
         <div className="walker-inner">
-          <Character h={p.h} dim={p.dim} avatar={avatar} />
+          <Hero h={p.h} dim={p.dim} avatar={avatar} walkMs={900} />
         </div>
         <div
           style={{

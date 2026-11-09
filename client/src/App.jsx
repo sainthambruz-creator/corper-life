@@ -9,6 +9,7 @@ import {
 } from "firebase/auth";
 import { db, auth } from "./firebase";
 import Scene from "./Scene";
+import MapView from "./MapView";
 import { sfx, isMuted, setMuted } from "./sound";
 
 const STATES = [
@@ -34,13 +35,13 @@ const ACTIONS = [
   {
     id: "cds",
     label: "Attend CDS",
-    note: "Energy -15, Cash -N500 (transport)",
+    need: 500,
     run: () => ({ cash: -500, energy: -15, health: 0, msg: "You attended CDS. The meeting started 2 hours late." }),
   },
   {
     id: "hustle",
     label: "Side hustle",
-    note: "Energy -30, Cash +N3,000 to N8,000",
+    need: 0,
     run: () => {
       const earned = 3000 + Math.floor(Math.random() * 5001);
       return { cash: earned, energy: -30, health: 0, msg: "Your side hustle paid N" + earned.toLocaleString() + "." };
@@ -49,13 +50,13 @@ const ACTIONS = [
   {
     id: "rest",
     label: "Rest at the lodge",
-    note: "Energy +40, Health +5",
+    need: 0,
     run: () => ({ cash: 0, energy: 40, health: 5, msg: "You rested well. NEPA even left the light on." }),
   },
   {
     id: "food",
     label: "Buy proper food",
-    note: "Cash -N1,500, Health +10, Energy +10",
+    need: 1500,
     run: () => ({ cash: -1500, energy: 10, health: 10, msg: "Jollof and chicken. You feel like a new person." }),
   },
 ];
@@ -88,6 +89,7 @@ function friendly(code) {
 export default function App() {
   const [stage, setStage] = useState("loading");
   const [tab, setTab] = useState("play");
+  const [view, setView] = useState("map");
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -98,7 +100,7 @@ export default function App() {
   const [player, setPlayer] = useState(null);
   const [stats, setStats] = useState(START);
   const [status, setStatus] = useState("playing");
-  const [log, setLog] = useState("Day 1 of your Service Year. What will you do?");
+  const [log, setLog] = useState("Day 1 of your Service Year. Where to?");
   const [scene, setScene] = useState({ loc: "start", n: 1, event: null });
   const [soundOff, setSoundOff] = useState(isMuted());
   const [busy, setBusy] = useState(false);
@@ -127,9 +129,10 @@ export default function App() {
           });
           setStats({ cash: d.cash, health: d.health, energy: d.energy, day: d.day });
           setStatus(d.health <= 0 ? "over" : d.day > TOTAL_DAYS ? "done" : "playing");
-          setLog("Welcome back, Corper " + d.name + ". Day " + d.day + " is waiting.");
+          setLog("Welcome back, Corper " + d.name + ". Day " + d.day + " is waiting. Where to?");
           setScene({ loc: "start", n: Date.now(), event: null });
           setTab("play");
+          setView("map");
           setStage("game");
         } else {
           setStage("create");
@@ -215,9 +218,10 @@ export default function App() {
       setPlayer({ id: user.uid, name: name.trim(), state, gender, color });
       setStats(START);
       setStatus("playing");
-      setLog("Day 1 of your Service Year. What will you do?");
+      setLog("Day 1 of your Service Year. Where to?");
       setScene({ loc: "start", n: Date.now(), event: null });
       setTab("play");
+      setView("map");
       setStage("game");
     } catch (e) {
       setError("Could not save: " + e.message);
@@ -243,9 +247,20 @@ export default function App() {
     }
     setStats(START);
     setStatus("playing");
-    setLog("A fresh Service Year begins. Day 1. What will you do?");
+    setLog("A fresh Service Year begins. Day 1. Where to?");
     setScene({ loc: "start", n: Date.now(), event: null });
+    setView("map");
     setError("");
+  }
+
+  function goTo(action) {
+    setView("scene");
+    doAction(action);
+  }
+
+  function backToMap() {
+    sfx.click();
+    setView("map");
   }
 
   async function doAction(action) {
@@ -335,11 +350,6 @@ export default function App() {
     width: "100%", padding: 12, fontSize: 16, fontWeight: 700, marginBottom: 10,
     borderRadius: 8, border: "2px solid " + accent, background: "#fff",
     color: accent, cursor: "pointer",
-  };
-  const actionBtn = {
-    width: "100%", padding: 12, marginBottom: 10, fontSize: 16,
-    borderRadius: 8, border: "2px solid " + accent, background: "#fff",
-    color: accent, fontWeight: 700, textAlign: "left", cursor: "pointer",
   };
   const statBox = {
     display: "flex", justifyContent: "space-between", background: "#f2f2f2",
@@ -475,6 +485,8 @@ export default function App() {
     );
   }
 
+  const avatar = player.gender === "female" ? "corper-f" : "corper";
+
   return (
     <div style={box}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -495,12 +507,19 @@ export default function App() {
             {player.state} State | Day {stats.day} of {TOTAL_DAYS}
           </p>
 
-          <Scene
-            loc={scene.loc}
-            n={scene.n}
-            event={scene.event}
-            avatar={player.gender === "female" ? "corper-f" : "corper"}
-          />
+          <div style={{ display: view === "map" ? "block" : "none" }}>
+            <MapView
+              avatar={avatar}
+              actions={ACTIONS}
+              cash={stats.cash}
+              locked={status !== "playing"}
+              onGo={goTo}
+            />
+          </div>
+
+          {view === "scene" && (
+            <Scene loc={scene.loc} n={scene.n} event={scene.event} avatar={avatar} />
+          )}
 
           <div style={statBox}>
             <span>Cash: N{stats.cash.toLocaleString()}</span>
@@ -511,16 +530,11 @@ export default function App() {
           <p style={{ minHeight: 60 }}>{log}</p>
           {error && <p style={{ color: "crimson" }}>{error}</p>}
 
-          {status === "playing" ? (
-            ACTIONS.map((a) => (
-              <button key={a.id} style={actionBtn} onClick={() => doAction(a)}>
-                {a.label}
-                <div style={{ fontSize: 13, fontWeight: 400 }}>{a.note}</div>
-              </button>
-            ))
-          ) : (
+          {status !== "playing" ? (
             <button style={button} onClick={restart}>Start a new Service Year</button>
-          )}
+          ) : view === "scene" ? (
+            <button style={button} onClick={backToMap}>Back to map</button>
+          ) : null}
         </>
       )}
 
